@@ -1,0 +1,160 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <!-- Include the WebGLEarth API -->
+    <script src="https://www.webglearth.com/v2/api.js"></script>
+    <script>
+      var earth;
+      var orbitingLights = [];
+      var currentLatLongDiv; // Global variable to track the currently displayed div
+
+      // Function to initialize the globe and setup event listeners
+      function initialize() {
+        earth = new WE.map('earth_div'); // Create a new WebGLEarth map
+        earth.setView([46.8011, 8.2266], 3); // Set the initial view
+        WE.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+          attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>'
+        }).addTo(earth); // Add OpenStreetMap tiles as the base layer
+
+        // Start a simple rotation animation
+        var before = null;
+        requestAnimationFrame(function animate(now) {
+          var c = earth.getPosition();
+          var elapsed = before? now - before: 0;
+          before = now;
+          earth.setCenter([c[0], c[1] + 0.1 * (elapsed / 30)]);
+          
+          // Update the positions of orbiting lights
+          updateOrbitingLights();
+
+          requestAnimationFrame(animate);
+        });
+
+        // Create and initialize orbiting lights
+        initializeOrbitingLights();
+
+        // Add click event listener for displaying latitude and longitude
+        earth.on('click', function(e) {
+          displayLatLong(e.latlng);
+        });
+
+        // Fetch satellite data and update the display
+        fetchSatelliteData();
+      }
+
+      // Function to initialize orbiting lights
+      function initializeOrbitingLights() {
+        for (var i = 0; i < 5; i++) {
+          var light = WE.marker([46.8011, 8.2266], 'satellite.png', 30, 30).addTo(earth);
+          orbitingLights.push({ light: light, angle: i * (Math.PI * 2) / 5 });
+        }
+      }
+
+      // Function to update positions of orbiting lights
+      function updateOrbitingLights() {
+        for (var i = 0; i < orbitingLights.length; i++) {
+          var light = orbitingLights[i].light;
+          var angle = orbitingLights[i].angle;
+          var radius = 100;
+
+          var lat = 46.8011 + Math.sin(angle) * radius;
+          var lng = 8.2266 + Math.cos(angle) * radius;
+          light.setLatLng([lat, lng]);
+
+          orbitingLights[i].angle += 0.005;
+        }
+      }
+
+      // Function to display latitude and longitude on click
+      function displayLatLong(latlng) {
+        if (currentLatLongDiv) {
+          document.body.removeChild(currentLatLongDiv);
+        }
+
+        var latLongDiv = document.createElement('div');
+        latLongDiv.style.position = 'absolute';
+        latLongDiv.style.top = '20px';
+        latLongDiv.style.left = '20px';
+        latLongDiv.style.color = 'white';
+        latLongDiv.style.fontFamily = 'Arial, sans-serif';
+        latLongDiv.style.fontSize = '16px';
+        latLongDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        latLongDiv.innerHTML = 'Latitude: ' + latlng.lat + '<br>Longitude: ' + latlng.lng;
+
+        document.body.appendChild(latLongDiv);
+
+        currentLatLongDiv = latLongDiv;
+
+        setTimeout(function() {
+          document.body.removeChild(latLongDiv);
+          currentLatLongDiv = null;
+        }, 3000);
+      }
+
+      // Function to fetch satellite data from the API
+      function fetchSatelliteData() {
+        fetch('http://127.0.0.1:5000/api/satellite_data')
+          .then(response => response.json())
+          .then(data => {
+            // Assuming data is an array of arrays with the specified structure
+            // You need to modify this part based on the structure of your data
+            for (var i = 0; i < data.length; i++) {
+              var satellite = data[i];
+
+              // Assuming the structure of the array is fixed, you can access elements by index
+              var satelliteName = satellite[0];
+              var satelliteID = satellite[1];
+              var noradCatalogNumber = satellite[2];
+              // ... continue extracting other properties
+
+              // Create a div to display JSON data
+              var jsonDataDiv = document.createElement('div');
+              jsonDataDiv.style.position = 'absolute';
+              jsonDataDiv.style.bottom = '20px';
+              jsonDataDiv.style.right = '20px';
+              jsonDataDiv.style.color = 'white';
+              jsonDataDiv.style.fontFamily = 'Arial, sans-serif';
+              jsonDataDiv.style.fontSize = '16px';
+              jsonDataDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+
+              // Convert the satellite data to formatted JSON string for display
+              jsonDataDiv.innerHTML = '<pre>' + JSON.stringify({
+                satelliteName: satelliteName,
+                satelliteID: satelliteID,
+                noradCatalogNumber: noradCatalogNumber,
+                // ... include other properties
+              }, null, 2) + '</pre>';
+
+              // Add the div to the body
+              document.body.appendChild(jsonDataDiv);
+
+              // Remove the div after a short delay (e.g., 10 seconds)
+              setTimeout(function() {
+                document.body.removeChild(jsonDataDiv);
+              }, 10000); // 10 seconds
+            }
+          })
+          .catch(error => console.error('Error fetching satellite data:', error));
+      }
+    </script>
+    <style>
+      html, body {
+        padding: 0;
+        margin: 0;
+        background-color: black;
+      }
+      #earth_div {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        position: absolute !important;
+      }
+    </style>
+    <title>Rotating globe animation with Orbiting Lights</title>
+    <meta name="description" content="Free and open-source 3D digital globe for web and mobile devices. This example shows how to rotate the Earth in a beautiful animation with orbiting lights.">
+  </head>
+  <body onload="initialize()">
+    <div id="earth_div"></div>
+  </body>
+</html>
